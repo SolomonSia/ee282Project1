@@ -13,11 +13,11 @@
 #include <pthread.h>
 
 #define NUM_THREADS 4
-
+#define BLOCK_SIZE 8
 /*****************************
 * Single-threaded
 *****************************/
-#if 1
+#if 0
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 typedef struct {
@@ -31,30 +31,32 @@ typedef struct {
    int col_end;
 } thread_arg;
 
+
 void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, double* __restrict__ C) {
-   int block_size = 8;
+
+/* matrix transpose */
    double Bt[N][N];
    double *__restrict__ Btt = (double *)Bt;
    int i, j, k, i0, j0, k0;
    int l;
-   for(i=0;i<N;i+=block_size){
-    for(j=0;j<N;j+=block_size){
-     for(k=i;k<i+block_size;++k){
-      for(l=j;l<j+block_size;++l){
+   for(i=0;i<N;i+=BLOCK_SIZE){
+    for(j=0;j<N;j+=BLOCK_SIZE){
+     for(k=i;k<i+BLOCK_SIZE;++k){
+      for(l=j;l<j+BLOCK_SIZE;++l){
         Btt[k+l*N] = B[l+k*N];
 }}}}
 
 
-   for (i0=0; i0<N; i0+=block_size){
+   for (i0=0; i0<N; i0+=BLOCK_SIZE){
 
-       for (j0=0; j0<N; j0+=block_size){
+       for (j0=0; j0<N; j0+=BLOCK_SIZE){
 
-           for (k0=0; k0<N; k0+=block_size){
+           for (k0=0; k0<N; k0+=BLOCK_SIZE){
 
 
-               for (i = i0; i < MIN(i0+block_size, N); i++){
-                   for (j = j0; j < MIN(j0+block_size, N); j++){
-                       for (k = k0; k < MIN(k0+block_size, N); k++){
+               for (i = i0; i < MIN(i0+BLOCK_SIZE, N); i++){
+                   for (j = j0; j < MIN(j0+BLOCK_SIZE, N); j++){
+                       for (k = k0; k < MIN(k0+BLOCK_SIZE, N); k++){
                            C[i*N + j] += A[i*N + k] * Btt[j*N + k];
                        }
                    }
@@ -68,21 +70,20 @@ void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, dou
 /*****************************
 * Multi-threaded
 *****************************/
-#if 0
+#if 1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C,
 		int row_begin, int row_end, int col_begin, int col_end){
-	int block_size = 8;
 
 	   int i0, j0, k0;
 	   int i, j, k;
-	   for (i0 = row_begin; i0 < row_end; i0 += block_size) {
-	       for (j0 = col_begin; j0 < col_end; j0 += block_size) {
-	           for (k0 = 0; k0 < dim; k0 += block_size) {
-	               for (i = i0; i < MIN(i0+block_size, row_end); i++){
-	                   for (j = j0; j < MIN(j0+block_size, col_end); j++){
-	                       for (k = k0; k < MIN(k0+block_size, dim); k++){
+	   for (i0 = row_begin; i0 < row_end; i0 += BLOCK_SIZE) {
+	       for (j0 = col_begin; j0 < col_end; j0 += BLOCK_SIZE) {
+	           for (k0 = 0; k0 < dim; k0 += BLOCK_SIZE) {
+	               for (i = i0; i < MIN(i0+BLOCK_SIZE, row_end); i++){
+	                   for (j = j0; j < MIN(j0+BLOCK_SIZE, col_end); j++){
+	                       for (k = k0; k < MIN(k0+BLOCK_SIZE, dim); k++){
 	                           C[i*dim + j] += A[i*dim + k] * B[k*dim + j];
 	                       }
 	                   }
