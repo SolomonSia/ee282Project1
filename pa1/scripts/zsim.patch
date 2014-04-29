@@ -1,0 +1,58 @@
+diff --git a/SConstruct b/SConstruct
+index b2d4fff..93466a6 100644
+--- a/SConstruct
++++ b/SConstruct
+@@ -17,10 +17,10 @@ def buildSim(cppFlags, dir, type, pgo=None):
+     versionFile = joinpath(buildDir, "version.h")
+     if os.path.exists(".git"):
+         env.Command(versionFile, allSrcs + [".git/index", "SConstruct"],
+-            'echo "#define ZSIM_BUILDDATE \\""`date`\\""\\\\n#define ZSIM_BUILDVERSION \\""`python misc/gitver.py`\\""" >>' + versionFile)
++            'echo -e "#define ZSIM_BUILDDATE \\""`date`\\""\\\\n#define ZSIM_BUILDVERSION \\""`python misc/gitver.py`\\""" >>' + versionFile)
+     else:
+         env.Command(versionFile, allSrcs + ["SConstruct"],
+-            'echo "#define ZSIM_BUILDDATE \\""`date`\\""\\\\n#define ZSIM_BUILDVERSION \\""no git repo\\""" >>' + versionFile)
++            'echo -e "#define ZSIM_BUILDDATE \\""`date`\\""\\\\n#define ZSIM_BUILDVERSION \\""no git repo\\""" >>' + versionFile)
+ 
+     # Parallel builds?
+     #env.SetOption('num_jobs', 32)
+diff --git a/src/ddr_mem.cpp b/src/ddr_mem.cpp
+index 5771cee..e7b08a0 100644
+--- a/src/ddr_mem.cpp
++++ b/src/ddr_mem.cpp
+@@ -711,6 +711,36 @@ void DDRMemory::initTech(const char* techName) {
+         tWR = 8;
+         tRFC = 59;
+         tREFI = 7800;
++    } else if (tech == "DDR3-800-CL5") {
++        // from DDR3_micron_32M_8B_x8_sg25E.ini
++        tCK = 2.5;
++        tBL = 4;
++        tCL = 5;
++        tRCD = 5;
++        tRTP = 4;
++        tRP = 5;
++        tRRD = 4;
++        tRAS = 15;
++        tFAW = 16;
++        tWTR = 4;
++        tWR = 6;
++        tRFC = 64;
++        tREFI = 7800;
++    } else if (tech == "DDR2-667-CL4") {
++        // from DDR2_micron_16M_8B_x8_sg3E.ini
++        tCK = 3;
++        tBL = 4;
++        tCL = 4;
++        tRCD = 4;
++        tRTP = 3;
++        tRP = 4;
++        tRRD = 3;
++        tRAS = 14;
++        tFAW = 13;
++        tWTR = 3;
++        tWR = 5;
++        tRFC = 43;
++        tREFI = 7800;
+     } else {
+         panic("Unknown technology %s, you'll need to define it", techName);
+     }

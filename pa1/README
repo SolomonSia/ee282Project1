@@ -1,0 +1,116 @@
+#####################################################################
+# EE282 Programming Assignment 1:
+# Optimization of Matrix Multiplication
+#
+# Created by: mgao12	04/14/2014
+#####################################################################
+
+1. Directory structure
+======================
+
+- matmul: the matrix multiply starting code and test driver. You need to
+          implement your matmul in matmul/matmul.c, and change the compiler flags
+          in matmul/Makefile.
+- scripts: the scripts used to setup the simulations and parse the simulation
+           results.
+
+Note: you are only allowed to change matmul/matmul.c and matmul/Makefile. Don't
+(and it should not be necessary to) change the other files or directories.
+
+
+
+2. Get started
+==============
+
+First cd to pa1/
+
+To compile the code in matmul/
+    make
+Or
+    make compile
+
+To setup a simulation:
+    make gensim
+
+This will generate a directory called sim-<timestamp>, which contains the files
+needed for a simulation (but doesn't run it).
+
+To run the simulation (remember to compile your code first before running the
+simulation!):
+    cd sim-<timestamp>
+    jsub -I -- ./run_script.sh
+
+This will submit an interactive job to the cluster. You can then use 'showq' to
+see the status of the job, or use 'qdel <job id>' to delete the job. If you want
+to use background mode, remove -I from the jsub command:
+    jsub -- ./run_script.sh
+
+After the job finishes (if you use background mode, two files will be created in
+the directory in which you submit the job, named <job command>.o<job id> and
+<job command>.e<job id>, containing the output for stdout and stderr), check the
+zsim.out file in each subdirectory to see whether it contains valid output
+results.
+
+If you only want to simulate one or two matrix sizes, modify run_script.sh by
+yourself. It is a very simple bash script. Remember to submit the job to the
+cluster as we showed before.
+
+Other command that may be helpful:
+
+To clean the code directory:
+    make clean
+
+(CAUTION: You may not want to do the following things! Think carefully!):
+To remove all the simulation folders:
+    make cleansim
+
+To clean everything:
+    make cleanall
+
+
+
+3. Parse the results
+====================
+
+If you can understand the zsim.out file from its comments, you can get performance
+numbers from it directly. We also provide a simple parser for the results.
+
+At top directory pa1/, run
+    ./scripts/zout_parser.py ./sim-<timestamp>
+
+It will print MFLOPS, instruction numbers, cycles, and cache misses.
+
+
+
+4. Install Zsim by your own
+===========================
+
+If you want to install zsim on your own machine. Please follow the instructions.
+
+a. Check out zsim from github
+    git clone https://github.com/s5z/zsim
+
+b. Follow the install instructions in section "Setup" in README.md file. You
+   need to install several dependencies first, including Pin, libconfig, libhdf5,
+   and polarssl.
+
+c. Copy the patch file in pa1/scripts to zsim top directory, and apply it. The
+   patch includes the DDR3-800 model we use in our configuration. Also, it fixes
+   a small bug which may cause compile failure in some system.
+    cd <your_zsim_dir>
+    cp <path_to_pa1>/scripts/zsim.patch .
+    git apply zsim.patch
+
+d. Build zsim
+    scons -j16
+
+e. Add zsim into your PATH env variable.
+    export PATH=<your_zsim_dir>/build/opt/:$PATH
+
+Now you should be able to run the simulations. To be able to parse the results
+using our script, you need to copy a Python file from the course directory and
+add it to your PYTHONPATH env variable.
+    cp /afs/ir/class/ee282/pa1/zsim_parse.py <local_dir>
+    export PYTHONAPTH=<local_dir>:$PYTHONPATH
+
+<EOF>

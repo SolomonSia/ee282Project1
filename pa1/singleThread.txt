@@ -1,0 +1,30 @@
+
+Simulation results for sim-182310-Apr-23-2014
+Each measurement is average per iteration.
+MFLOPS numbers are estimated assuming a naive matmul.
+
+ Size     MFLOPS           Cycles       Instrs   L1D Misses    L2 Misses    L3 Misses
+    4    895.084                                                                   0
+                             419          696            0            1
+                               0            0            0            0
+                               0            0            0            0
+                               0            0            0            0
+
+   16   1137.185                                                                   0
+                           21107        34721            1            1
+                               0            0            0            0
+                               0            0            0            0
+                               0            0            0            0
+
+   64    939.606                                                                  12
+                         1634902      2126368        38477           15
+                               0            0            0            0
+                               0            0            0            0
+                               0            0            0            0
+
+  256    834.983                                                                2470
+                       117744244    134678641     16866312     16859664
+                               0            0            0            0
+                               0            0            0            0
+                               0            0            0            0
+

@@ -1,0 +1,149 @@
+/********************************************************************
+* EE282 Programming Assignment 1:
+* Optimization of Matrix Multiplication
+*
+* Updated by: mgao12    04/14/2014
+********************************************************************/
+
+// This is the matrix multiply kernel you are to replace.
+// Note that you are to implement C = C + AB, not C = AB!
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+
+#define NUM_THREADS 4
+
+/*****************************
+* Single-threaded
+*****************************/
+#if 1
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+typedef struct {
+   const double *A;
+   const double *B;
+   double *C;
+   int dim;
+   int row_begin;
+   int row_end;
+   int col_begin;
+   int col_end;
+} thread_arg;
+
+void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, double* __restrict__ C) {
+   int block_size = 8;
+   double Bt[N][N];
+   double *__restrict__ Btt = (double *)Bt;
+   int i, j, k, i0, j0, k0;
+   int l;
+   for(i=0;i<N;i+=block_size){
+    for(j=0;j<N;j+=block_size){
+     for(k=i;k<i+block_size;++k){
+      for(l=j;l<j+block_size;++l){
+        Btt[k+l*N] = B[l+k*N];
+}}}}
+
+
+   for (i0=0; i0<N; i0+=block_size){
+
+       for (j0=0; j0<N; j0+=block_size){
+
+           for (k0=0; k0<N; k0+=block_size){
+
+
+               for (i = i0; i < MIN(i0+block_size, N); i++){
+                   for (j = j0; j < MIN(j0+block_size, N); j++){
+                       for (k = k0; k < MIN(k0+block_size, N); k++){
+                           C[i*N + j] += A[i*N + k] * Btt[j*N + k];
+                       }
+                   }
+               }
+           }
+       }
+   }
+}
+#endif
+
+/*****************************
+* Multi-threaded
+*****************************/
+#if 0
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C,
+		int row_begin, int row_end, int col_begin, int col_end){
+	int block_size = 8;
+
+	   int i0, j0, k0;
+	   int i, j, k;
+	   for (i0 = row_begin; i0 < row_end; i0 += block_size) {
+	       for (j0 = col_begin; j0 < col_end; j0 += block_size) {
+	           for (k0 = 0; k0 < dim; k0 += block_size) {
+	               for (i = i0; i < MIN(i0+block_size, row_end); i++){
+	                   for (j = j0; j < MIN(j0+block_size, col_end); j++){
+	                       for (k = k0; k < MIN(k0+block_size, dim); k++){
+	                           C[i*dim + j] += A[i*dim + k] * B[k*dim + j];
+	                       }
+	                   }
+	               }
+	           }
+	       }
+	   }
+
+}
+
+typedef struct {
+   const double * __restrict__ A;
+   const double  * __restrict__ B;
+   double * __restrict__ C;
+   int dim;
+   int row_begin;
+   int row_end;
+   int col_begin;
+   int col_end;
+} thread_arg;
+
+void * worker_func (void * __restrict__ arg) {
+   thread_arg * __restrict__ targ = (thread_arg * __restrict__ )arg;
+
+   const double * __restrict__ A = targ->A;
+   const double * __restrict__ B = targ->B;
+   double * __restrict__ C = targ->C;
+   int dim = targ->dim;
+   int row_begin = targ -> row_begin;
+   int row_end = targ -> row_end;
+   int col_begin = targ -> col_begin;
+   int col_end = targ -> col_end;
+   matThread(dim,A,B,C,row_begin,row_end,col_begin,col_end);
+
+   return NULL;
+}
+
+void matmul(int N, const double* __restrict__ A, const double* __restrict__ B,
+		double* __restrict__ C) {
+   pthread_t workers[NUM_THREADS - 1];
+   thread_arg args[NUM_THREADS];
+   int stripe = (N+1) / 2;
+   int i;
+
+   args[0] = (thread_arg){ A, B, C, N, 0, stripe, 0, stripe};
+   pthread_create(&workers[0], NULL, worker_func, &args[0]);
+
+   args[1] = (thread_arg){ A, B, C, N, 0, stripe, stripe, N};
+   pthread_create(&workers[1], NULL, worker_func, &args[1]);
+
+   args[2] = (thread_arg){ A, B, C, N, stripe, N, 0, stripe};
+   pthread_create(&workers[2], NULL, worker_func, &args[2]);
+
+   args[3] = (thread_arg){ A, B, C, N, stripe, N, stripe, N};
+   worker_func(&args[NUM_THREADS - 1]);
+
+   for (i = 0; i < NUM_THREADS - 1; i++) {
+       if (pthread_join(workers[i], NULL) != 0) {
+           fprintf(stderr, "Fail to join thread!");
+           exit(1);
+       }
+   }
+}
+#endif
