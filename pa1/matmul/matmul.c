@@ -13,11 +13,12 @@
 #include <pthread.h>
 
 #define NUM_THREADS 4
-#define BLOCK_SIZE 8
+#define BLOCK_SIZE 32
+#define BIG_BLOCK 32
 /*****************************
 * Single-threaded
 *****************************/
-#if 0
+#if 1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 typedef struct {
@@ -35,52 +36,65 @@ typedef struct {
 void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, double* __restrict__ C) {
 
 /* matrix transpose */
-   double Bt[N][N];
-   double *__restrict__ Btt = (double *)Bt;
-   int i, j, k, i0, j0, k0;
-   int l;
-   for(i=0;i<N;i+=BLOCK_SIZE){
+//   double Bt[N][N];
+//   double *__restrict__ Btt = (double *)Bt;
+   int i, j, k, i0, j0, k0,i1,j1,k1;
+ /*  for(i=0;i<N;i+=BLOCK_SIZE){
     for(j=0;j<N;j+=BLOCK_SIZE){
      for(k=i;k<i+BLOCK_SIZE;++k){
       for(l=j;l<j+BLOCK_SIZE;++l){
         Btt[k+l*N] = B[l+k*N];
 }}}}
+*/
 
+//   for(i1=0;i1<N;i1+=BIG_BLOCK){
+//   for(j1=0;j1<N;j1+=BIG_BLOCK){
+//   for(k1=0;k1<N;k1+=BIG_BLOCK){
 
-   for (i0=0; i0<N; i0+=BLOCK_SIZE){
+ //  for (i0=i1; i0<MIN(i1+BIG_BLOCK,N); i0+=BLOCK_SIZE){
 
-       for (j0=0; j0<N; j0+=BLOCK_SIZE){
+//       for (j0=j1; j0<MIN(j1+BIG_BLOCK,N); j0+=BLOCK_SIZE){
 
-           for (k0=0; k0<N; k0+=BLOCK_SIZE){
+//           for (k0=k1; k0<(MIN(j1+BIG_BLOCK,N)); k0+=BLOCK_SIZE){
 
+	for(i0=0;i0<N;i0+=BLOCK_SIZE){
+	for(j0=0;j0<N;j0+=BLOCK_SIZE){
+	for(k0=0;k0<N;k0+=BLOCK_SIZE){
 
                for (i = i0; i < MIN(i0+BLOCK_SIZE, N); i++){
                    for (j = j0; j < MIN(j0+BLOCK_SIZE, N); j++){
                        for (k = k0; k < MIN(k0+BLOCK_SIZE, N); k++){
-                           C[i*N + j] += A[i*N + k] * Btt[j*N + k];
+                           C[i*N + j] += A[i*N + k] * B[k*N + j];
                        }
                    }
                }
-           }
-       }
-   }
+       }}}
+
+//}}}
+
 }
 #endif
 
 /*****************************
 * Multi-threaded
 *****************************/
-#if 1
+#if 0
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C,
 		int row_begin, int row_end, int col_begin, int col_end){
 
-	   int i0, j0, k0;
+	   int i0, j0, k0,i1,j1,k1;
 	   int i, j, k;
-	   for (i0 = row_begin; i0 < row_end; i0 += BLOCK_SIZE) {
-	       for (j0 = col_begin; j0 < col_end; j0 += BLOCK_SIZE) {
-	           for (k0 = 0; k0 < dim; k0 += BLOCK_SIZE) {
+
+	   for(i1=0;i1<row_end;i1+=BIG_BLOCK){
+	   for(j1=0;j1<col_end;j1+=BIG_BLOCK){
+	   for(k1=0;k1<dim;k1+=BIG_BLOCK){
+
+		   for (i0=i1; i0<MIN(i1+BIG_BLOCK,row_end); i0+=BLOCK_SIZE){
+		        for (j0=j1; j0<MIN(j1+BIG_BLOCK,col_end); j0+=BLOCK_SIZE){
+		            for (k0=k1; k0<MIN(j1+BIG_BLOCK,dim); k0+=BLOCK_SIZE){
+
 	               for (i = i0; i < MIN(i0+BLOCK_SIZE, row_end); i++){
 	                   for (j = j0; j < MIN(j0+BLOCK_SIZE, col_end); j++){
 	                       for (k = k0; k < MIN(k0+BLOCK_SIZE, dim); k++){
@@ -91,7 +105,7 @@ void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B
 	           }
 	       }
 	   }
-
+	   }}}
 }
 
 typedef struct {
