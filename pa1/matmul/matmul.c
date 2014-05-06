@@ -18,8 +18,16 @@
 /*****************************
 * Single-threaded
 *****************************/
-#if 0
+#if 1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+void matmul_strassen_leaf(const double* A, 
+                          const double* B, 
+                          double* C);
+void matmul_strassen(int N, 
+                     const double* A, 
+                     const double* B, 
+                     double* C);
 
 typedef struct {
    const double *A;
@@ -32,8 +40,45 @@ typedef struct {
    int col_end;
 } thread_arg;
 
+void matmul_strassen_test(const double* A, const double* B,  double* C){
+  C[0]+= A[0]*B[0] + A[1]*B[2];
+  C[1]+= A[0]*B[1] + A[1]*B[3];
+  C[2]+= A[2]*B[0] + A[3]*B[2];
+  C[3]+= A[2]*B[1] + A[3]*B[3];
+}
+
+void matmul_strassen_leaf(const double* A, const double* B,  double* C){
+  // unsafe operations assuming A, B and C has size 4
+  double m1,m2,m3,m4,m5,m6,m7;
+  m1 = (A[0]+A[3])*(B[0]+B[3]);
+  m2 = (A[2]+A[3])*B[0];
+  m3 = A[0]*(B[1]-B[3]);
+  m4 = A[3]*(B[2]-B[0]);
+  m5 = (A[0]+A[1])*B[3];
+  m6 = (A[2]-A[0])*(B[0]+B[1]);
+  m7 = (A[1]-A[3])*(B[2]+B[3]);
+  //  C[0] = 0; C[1]=0;C[2]=0;C[3] = 0;
+  C[0] += m1+m4-m5+m7;
+  C[1] += m3+m5;
+  C[2] += m2+m4;
+  C[3] += m1-m2+m3+m6; 
+}
+
+void matmul_strassen(int N , const double* A, const double* B, 
+                     double* C){
+  if (N==2){
+    printf("C = [%f %f; %f %f]\n",C[0],C[1],C[2],C[3]);
+    
+    matmul_strassen_leaf(A,B,C);
+    printf("C' = [%f %f; %f %f]\n",C[0],C[1],C[2],C[3]);
+  }
+}
 
 void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, double* __restrict__ C) {
+  if (N==2){
+    matmul_strassen(2,A,B,C);
+  }return;
+
 
 /* matrix transpose */
 //   double Bt[N][N];
@@ -74,7 +119,7 @@ void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, dou
 /*****************************
 * Multi-threaded
 *****************************/
-#if 1
+#if 0
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C,
