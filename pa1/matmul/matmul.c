@@ -1,3 +1,4 @@
+
 /********************************************************************
 * EE282 Programming Assignment 1:
 * Optimization of Matrix Multiplication
@@ -10,7 +11,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+//#include <string.h>
 #include <pthread.h>
 
 #define NUM_THREADS 4
@@ -21,11 +22,14 @@
 *****************************/
 #if 1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define AT(A,N,i,j) (A+(i*N+j))
+#define AT_REF(A,N,i,j) (*AT(A,N,i,j))
+
 
 void matmul_strassen_leaf(int r0, int c0, int N, const double* AA, 
                           const double* BB,  double* CC);
 
-  void matmul_strassen(int r0, int c0, int n,  int N, 
+void matmul_strassen(int n,  int N, 
                      const double* A, 
                      const double* B, 
                      double* C);
@@ -43,7 +47,7 @@ void print_mat(int N, const double *C){
   for ( k=0; k<N;k++){
     for ( j=0; j<N;j++){
       //printf("[%i,%i] %i = %f\n",k,j,C[k*N+j],k*N+j);
-      printf("%f ",k,j,C[k*N+j],k*N+j);
+      printf("%f ",C[k*N+j]);
     }
     printf("\n");
   }
@@ -61,13 +65,33 @@ typedef struct {
    int col_end;
 } thread_arg;
 
-void matmul1(int N, const double* A, const double* B, double* C) {
+void matmul1(int N,//int r0,int c0, int c1, 
+             const double* A, const double* B, double* C) {
   int i, j, k;
 
-  for (i = 0; i < N; i++)
-    for (j = 0; j < N; j++)
-      for (k = 0; k < N; k++)
-        C[i*N + j] += A[i*N + k] * B[k*N + j];
+  for (i = 0; i < N; i++){
+    for (j = 0; j < N; j++){
+      double val = 0;
+      for (k = 0; k < N; k++){
+        val += AT_REF(A, N, i, k) * AT_REF(B,N,k, j);
+      }
+      AT_REF(C,N,i,j)=val;
+    }
+  }
+}
+void matmul2(int N,//int r0,int c0, int c1, 
+             const double* A, const double* B, double* C) {
+  int i, j, k;
+
+  for (i = 0; i < N; i++){
+    for (j = 0; j < N; j++){
+      double val = 0;
+      for (k = 0; k < N; k++){
+        val += AT_REF(A, N, i, k) * AT_REF(B,N,k, j);
+      }
+      AT_REF(C,N,i,j) +=val;
+    }
+  }
 }
 
 
@@ -111,12 +135,85 @@ void matmul_strassen_leaf(int r0, int c0, int N, const double* AA,
   C[(r0+1)*N +c0] += m2+m4;
   C[(r0+1)*N+c0+1] += m1-m2+m3+m6; 
   printf("C: [%i %i; %i %i] = [%f %f; %f %f]\n",
-         r0*N+c0, r0*N+c0+1,(r0+1)*N+c0, (r0+1)*N+c0+1,
+         r0*N+c0, r0*N+c0+1, (r0+1)*N+c0, (r0+1)*N+c0+1,
          C[r0*N+c0], C[r0*N+c0+1], C[(r0+1)*N+c0], C[(r0+1)*N + c0+1]);
   //printf("C_gt: [%f %f; %f %f]\n",
   //       GT[0], GT[1], GT[2], GT[3]);
 }
+void mat_add(int n, int N,  double *A1, double *A2, double
+  *sum){
+  const double *array_end = A1 +n*n;
+  for (;A1 < array_end;A1+=n,A2+=n,sum+=n){
+    const double *row_end = A1 + n;
+    for (; A1 < row_end;A1++,A2++, sum++){
+      *sum = *A1 + *A2;
+    }
+  }
+}
+void mat_sub(int n, int N,  double *A1, double *A2, double
+  *diff){
+  const double* array_end = A1+n*n;
+  for (;A1 < array_end;A1+=n,A2+=n,diff+=n){
+    const double* row_end = A1 + n;
+    for (; A1 < row_end;A1++,A2++,diff++){
+      *diff = *A1 - *A2;
+    }
+  }
+}
 
+void  strassen_M1( int n, int N, double *A1,double *A2, double *B1, 
+                   double* B2, double *M){
+  double *sum1 = (double*)malloc(sizeof(double)*n*n);
+  double *sum2 = (double*)malloc(sizeof(double)*n*n);
+  mat_add(n, N, A1,A2,sum1);
+  mat_add(n, N, B1,B2,sum2);
+  matmul_strassen(n, N,sum1, sum2, M);
+  free(sum1);
+  free(sum2);
+}
+
+void  strassen_M2( int n, int N, double *A1,double *A2, 
+                   double *B, double *M){
+  double *sum = (double*)malloc(sizeof(double)*n*n);
+  mat_add(n, N, A1,A2,sum);
+  matmul_strassen(n, N,sum, B, M);
+  free(sum);
+
+}
+void  strassen_M3( int n, int N, double *A,double *B1, 
+                   double *B2, double *M){
+  double *diff = (double*)malloc(sizeof(double)*n*n);
+  mat_sub(n, N, B1, B2, diff);
+  matmul_strassen(n, N, A, diff,M);
+  
+  free(diff);
+}
+void  strassen_M6( int n, int N, double *A1, double *A2,
+                   double *B1, double *B2, double *M){
+  double *diff = (double*)malloc(sizeof(double)*n*n);
+  
+  double *sum = (double*)malloc(sizeof(double)*n*n);
+  mat_sub(n, N, A1, A2, diff);
+  mat_add(n, N, B1, B2, sum);
+  matmul_strassen(n, N,diff,sum,M);
+  free(diff);free(sum);
+}
+// C12 = M3  +M5
+void strassen_C12(int n, int N, double *M1, double *M2, double *C){
+  mat_add(n,N,C,M1,C); //C = C+M1;
+  mat_add(n,N,C,M2,C); //C = C+M2;
+}
+    // C22 = M1+M3+M6-M2
+void strassen_C11(int n, int N, double *M1, double *M2, double *M3,
+                  double *M6,double *C){
+
+
+  mat_add(n,N,C,M1,C); //C = C+M1
+  mat_sub(n,N,C,M2,C); //c = c-m2
+  mat_add(n,N,C,M3,C); //c = c+M3
+  mat_add(n,N,C,M6,C); //c = c+M6
+
+} 
 /**
  * function: matmul_strassen
  * 
@@ -126,25 +223,84 @@ void matmul_strassen_leaf(int r0, int c0, int N, const double* AA,
  * N: size of A,B and C
  */
 
-void matmul_strassen(int r0, int c0, int n, int N , const double* A, 
-                     const double* B, 
-                     double* C){
+void matmul_strassen( int n, int N , const double* A, 
+                     const double* B, double* C){
   int s = N*N;
   
   //double C_copy[s];
   //memcpy(&C_copy,C,sizeof(double)*s);
-  if (n==2){
-    //printf("C = [%f %f; %f %f]\n",C[0],C[1],C[2],C[3]);
-    matmul_strassen_leaf(r0,c0,N,A,B,C);
+  if (n <= 4){
+    matmul1(N,A,B,C);
+    
+    //matmul_strassen_leaf(r0,c0,N,A,B,C);
     //printf("C' = [%f %f; %f %f]\n",C[0],C[1],C[2],C[3]);
   }else if(isPowerOfTwo(n)){
-    int new_n = n/2;
-    printf("r0 = %i, c0 = %i, n = %i, N = %i , new n = %i\n",
-           r0,c0,n,N,new_n);
+    int new_n  = n >> 1;
 
-  print_mat(N,C);   
-    matmul_strassen(r0,c0,new_n,N,A,B,C);
-  print_mat(N,C);      
+    double *A11 = AT(A,N,0,0);
+    double *A12 = AT(A,N,0,new_n);
+    double *A21 = AT(A,N,new_n,0);
+    double *A22 = AT(A,N,new_n,new_n);
+
+    double *B11 = AT(B,N,0,0);
+    double *B12 = AT(B,N,0,new_n);
+    double *B21 = AT(B,N,new_n,0);
+    double *B22 = AT(B,N,new_n,new_n);
+
+    double *C11 = AT(C,N,0,0);
+    double *C12 = AT(C,N,0,new_n);
+    double *C21 = AT(C,N,new_n,0);
+    double *C22 = AT(C,N,new_n,new_n);
+    
+    double *M1 = (double*) malloc(sizeof(double)*new_n*new_n);
+    double *M3 = (double*) malloc(sizeof(double)*new_n*new_n);
+    double *M4 = (double*) malloc(sizeof(double)*new_n*new_n);
+
+    double *M7 = (double*) malloc(sizeof(double)*new_n*new_n);
+    double *M5 = (double*) malloc(sizeof(double)*new_n*new_n);
+    double *M2 = (double*) malloc(sizeof(double)*new_n*new_n);
+    double *M6 = (double*) malloc(sizeof(double)*new_n*new_n); 
+
+    
+    strassen_M1( new_n, N,A11, A22, B11, B22, M1);
+    strassen_M2(new_n,N,A21,A22,B11,M2);
+    strassen_M3(new_n,N,A11,B12,B22,M3);
+    strassen_M3(new_n,N,A22,B21,B11,M4);
+    strassen_M2(new_n,N,A11,A12,B22,M5);
+    strassen_M6(new_n,N,A21,A11,B11,B12,M6);
+    strassen_M6(new_n,N,A12,A22,B21,B22,M7);
+
+    // C11 = M1+M4+M7-M5
+    strassen_C11(new_n,N,M1,M4,M5,M7,C11);
+    // C12 = M3+M5
+    strassen_C12(new_n,N,M3,M5,C12);
+    // C21 = M2 + M4
+    strassen_C12(new_n,N,M2,M4,C21);
+    // C22 = M1+M3+M6-M2
+    strassen_C11(new_n,N,M1,M3,M2,M6,C22);
+
+    free(M1);
+    free(M2);
+    free(M3);
+    free(M4);
+    free(M5);
+    free(M6);
+    free(M7);
+
+
+    //    printf("r0 = %i, c0 = %i, n = %i, N = %i , new n = %i\n",
+    //       r0,c0,n,N,new_n);
+    /*int M_size = new_n*new_n;
+    double M[M_size];
+    double T[M_size];
+    // A11+A22
+    matadd(r0, c0, r0+new_n, c0+new_n, N,A,A,&M);
+    matadd(r0, c0, r0+new_n, c0+new_n, N,B,B,&T);
+    matmul_strassen(r0,c0,new_n
+    // compute M1
+    
+
+    matadd(r0,c0,new_n,N,&M,C);
   
   matmul_strassen(r0,c0+new_n,new_n,N,A,B,C);
   print_mat(N,C);   
@@ -152,6 +308,7 @@ void matmul_strassen(int r0, int c0, int n, int N , const double* A,
 print_mat(N,C);   
     matmul_strassen(r0+new_n,c0+new_n, new_n,N,A,B,C);
 print_mat(N,C);   
+    */
   }
   
   
@@ -171,17 +328,23 @@ B, double* __restrict__ C) {
   print_mat(N,A);
 
   print_mat(N,B);
+  print_mat(N,C);
   //if (N==2){
-    matmul_strassen(0,0,N,N,A,B,C);
-    return;
+  if (N== 2){
+    matmul2(N,A,B,C);
+
+  }else{
+    matmul_strassen(N,N,A,B,C);
+  }
+  print_mat(N,C);
+    //return;
+}
     //}
-
-
 
 /* matrix transpose */
 //   double Bt[N][N];
 //   double *__restrict__ Btt = (double *)Bt;
-   int i, j, k, i0, j0, k0,i1,j1,k1;
+//   int i, j, k, i0, j0, k0,i1,j1,k1;
  /*  for(i=0;i<N;i+=BLOCK_SIZE){
     for(j=0;j<N;j+=BLOCK_SIZE){
      for(k=i;k<i+BLOCK_SIZE;++k){
@@ -189,7 +352,7 @@ B, double* __restrict__ C) {
         Btt[k+l*N] = B[l+k*N];
 }}}}
 */
-
+    /*
    for(i1=0;i1<N;i1+=BIG_BLOCK){
    for(j1=0;j1<N;j1+=BIG_BLOCK){
    for(k1=0;k1<N;k1+=BIG_BLOCK){
@@ -210,8 +373,8 @@ B, double* __restrict__ C) {
        }}}
 
 }}}
+    */
 
-}
 #endif
 
 /*****************************
