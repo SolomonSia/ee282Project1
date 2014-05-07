@@ -101,7 +101,9 @@ void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B
 	           }
 	       }
 	   }
-	   }}}
+	 }
+  }
+}
 }
 
 typedef struct {
