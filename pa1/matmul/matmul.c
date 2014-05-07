@@ -41,6 +41,9 @@ if(N<=32){
 }
 else{
 /* test code correctness */
+
+
+
    for(count = 0;count<4;count++){
       if (count == 1){
 	iStart1 = start;
@@ -64,7 +67,7 @@ else{
 }
 }
 
-#if 1
+#if 0
 void matmul(int N, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C) {
 r_matmul(N,N,0,0,0,A,B,C);
 }
@@ -74,7 +77,7 @@ r_matmul(N,N,0,0,0,A,B,C);
 /*****************************
 * Multi-threaded
 *****************************/
-#if 0
+#if 1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 void matThread(int dim, const double*__restrict__ A, const double*__restrict__ B, double*__restrict__ C,
